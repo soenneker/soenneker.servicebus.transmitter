@@ -40,7 +40,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
 
         try
         {
-            ServiceBusSender sender = await _serviceBusSenderUtil.GetSender(message.Queue.Name);
+            ServiceBusSender sender = await _serviceBusSenderUtil.GetSender(message.Queue);
 
             ServiceBusMessage? serviceBusMessage = _serviceBusMessageUtil.BuildMessage(message, type);
 
