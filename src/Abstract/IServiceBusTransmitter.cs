@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Soenneker.Utils.BackgroundQueue.Abstract;
 
 namespace Soenneker.ServiceBus.Transmitter.Abstract;
 
@@ -10,14 +11,14 @@ namespace Soenneker.ServiceBus.Transmitter.Abstract;
 public interface IServiceBusTransmitter
 {
     /// <summary>
-    /// Wraps <see cref="InternalSendMessage{TMsg}"/> with TaskQueue
+    /// Wraps <see cref="InternalSendMessage{TMsg}"/> with <see cref="IBackgroundQueue"/>
     /// </summary>
     ValueTask SendMessage<T>(T msgModel) where T : Messages.Base.Message;
 
     /// <summary>
     /// Actually sends the message after getting the connection, etc. Not supposed to be accessed directly besides tests.
     /// </summary>
-    ValueTask<bool> InternalSendMessage<TMsg>(TMsg msg) where TMsg : Messages.Base.Message;
+    ValueTask InternalSendMessage<TMsg>(TMsg msg) where TMsg : Messages.Base.Message;
 
     /// <summary>
     /// Wraps <see cref="InternalSendMessages{TMsg}"/> with TaskQueue
@@ -27,5 +28,5 @@ public interface IServiceBusTransmitter
     /// <summary>
     /// Actually sends the message after getting the connection, etc. Not supposed to be accessed directly besides tests.
     /// </summary>
-    ValueTask<bool> InternalSendMessages<T>(IList<T> msgModels) where T : Messages.Base.Message;
+    ValueTask InternalSendMessages<T>(IList<T> msgModels) where T : Messages.Base.Message;
 }
