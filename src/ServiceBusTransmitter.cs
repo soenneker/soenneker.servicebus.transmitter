@@ -53,7 +53,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
         {
             ServiceBusSender sender = await _serviceBusSenderUtil.GetSender(message.Queue);
 
-            ServiceBusMessage? serviceBusMessage = _serviceBusMessageUtil.BuildMessage(message, type);
+            ServiceBusMessage? serviceBusMessage = await _serviceBusMessageUtil.BuildMessage(message, type);
 
             if (serviceBusMessage == null)
                 throw new Exception("There was a problem building the ServiceBus message, cannot send");
@@ -92,7 +92,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
 
             foreach (TMessage message in messages)
             {
-                ServiceBusMessage? serviceBusMessage = _serviceBusMessageUtil.BuildMessage(message, type);
+                ServiceBusMessage? serviceBusMessage = await _serviceBusMessageUtil.BuildMessage(message, type);
 
                 if (serviceBusMessage != null)
                     serviceBusMessages.Add(serviceBusMessage);
