@@ -40,8 +40,8 @@
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
 
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="1.0.82" />
-        <PackageReference Include="Soenneker.ServiceBus.Message" Version="1.0.224" />
+        <PackageReference Include="Soenneker.ServiceBus.Message" Version="1.0.228" />
         <PackageReference Include="Soenneker.ServiceBus.Sender" Version="1.0.148" />
-        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="1.0.181" />
+        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="1.0.185" />
     </ItemGroup>
 </Project>
