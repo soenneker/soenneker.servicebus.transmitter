@@ -37,11 +37,11 @@
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
 
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 
-        <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.0.124" />
+        <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.0.127" />
         <PackageReference Include="Soenneker.ServiceBus.Message" Version="1.0.308" />
-        <PackageReference Include="Soenneker.ServiceBus.Sender" Version="2.0.231" />
+        <PackageReference Include="Soenneker.ServiceBus.Sender" Version="2.0.235" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="2.0.302" />
     </ItemGroup>
 </Project>
