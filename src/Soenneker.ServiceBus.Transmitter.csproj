@@ -37,7 +37,7 @@
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
 
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+        
 
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.1.11" />
         <PackageReference Include="Soenneker.ServiceBus.Message" Version="1.0.335" />
