@@ -8,5 +8,5 @@
 ## Installation
 
 ```
-Install-Package Soenneker.ServiceBus.Transmitter
+dotnet add package Soenneker.ServiceBus.Transmitter
 ```
