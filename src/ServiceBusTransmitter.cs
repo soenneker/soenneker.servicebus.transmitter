@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Soenneker.Extensions.Configuration;
 using Soenneker.Extensions.Task;
+using Soenneker.Extensions.ValueTask;
 using Soenneker.ServiceBus.Message.Abstract;
 using Soenneker.ServiceBus.Sender.Abstract;
 using Soenneker.ServiceBus.Transmitter.Abstract;
@@ -53,9 +54,9 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
 
         try
         {
-            ServiceBusSender sender = await _serviceBusSenderUtil.GetSender(message.Queue);
+            ServiceBusSender sender = await _serviceBusSenderUtil.Get(message.Queue, cancellationToken).NoSync();
 
-            ServiceBusMessage? serviceBusMessage = await _serviceBusMessageUtil.BuildMessage(message, type);
+            ServiceBusMessage? serviceBusMessage = _serviceBusMessageUtil.BuildMessage(message, type);
 
             if (serviceBusMessage == null)
                 throw new Exception("There was a problem building the ServiceBus message, cannot send");
@@ -88,13 +89,13 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
         {
             var queueName = $"{messages.First().Queue}";
 
-            ServiceBusSender sender = await _serviceBusSenderUtil.GetSender(queueName);
+            ServiceBusSender sender = await _serviceBusSenderUtil.Get(queueName, cancellationToken).NoSync();
 
             List<ServiceBusMessage> serviceBusMessages = [];
 
             foreach (TMessage message in messages)
             {
-                ServiceBusMessage? serviceBusMessage = await _serviceBusMessageUtil.BuildMessage(message, type);
+                ServiceBusMessage? serviceBusMessage = _serviceBusMessageUtil.BuildMessage(message, type);
 
                 if (serviceBusMessage != null)
                     serviceBusMessages.Add(serviceBusMessage);
