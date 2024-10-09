@@ -41,7 +41,7 @@
 
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.1.455" />
         <PackageReference Include="Soenneker.ServiceBus.Message" Version="2.1.1655" />
-        <PackageReference Include="Soenneker.ServiceBus.Sender" Version="2.1.1138" />
+        <PackageReference Include="Soenneker.ServiceBus.Sender" Version="2.1.1140" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="2.1.1500" />
     </ItemGroup>
 </Project>
