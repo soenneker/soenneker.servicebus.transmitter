@@ -37,7 +37,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
         _enabled = config.GetValueStrict<bool>("Azure:ServiceBus:Enable");
     }
 
-    public ValueTask SendMessage<TMessage>(TMessage message) where TMessage : Messages.Base.Message
+    public ValueTask SendMessage<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
     {
         if (!_enabled)
         {
@@ -45,7 +45,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
             return ValueTask.CompletedTask;
         }
 
-        return _backgroundQueue.QueueValueTask(cancellationToken => InternalSendMessage(message, cancellationToken));
+        return _backgroundQueue.QueueValueTask(token => InternalSendMessage(message, token), cancellationToken);
     }
 
     public async ValueTask InternalSendMessage<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
@@ -70,7 +70,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
         }
     }
 
-    public ValueTask SendMessages<TMessage>(IList<TMessage> messages) where TMessage : Messages.Base.Message
+    public ValueTask SendMessages<TMessage>(IList<TMessage> messages, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
     {
         if (!_enabled)
         {
@@ -78,7 +78,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
             return ValueTask.CompletedTask;
         }
 
-        return _backgroundQueue.QueueValueTask(cancellationToken => InternalSendMessages(messages, cancellationToken));
+        return _backgroundQueue.QueueValueTask(token => InternalSendMessages(messages, token), cancellationToken);
     }
 
     public async ValueTask InternalSendMessages<TMessage>(IList<TMessage> messages, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
@@ -87,7 +87,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
 
         try
         {
-            var queueName = $"{messages.First().Queue}";
+            string queueName = messages.First().Queue;
 
             ServiceBusSender sender = await _serviceBusSenderUtil.Get(queueName, cancellationToken).NoSync();
 
@@ -101,13 +101,13 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
                     serviceBusMessages.Add(serviceBusMessage);
             }
 
-            if (!serviceBusMessages.Any())
+            if (serviceBusMessages.Count == 0)
             {
                 _logger.LogError("== ServiceBusTransmitter: No messages to send...");
                 return;
             }
 
-            await sender.SendMessagesAsync(serviceBusMessages, cancellationToken);
+            await sender.SendMessagesAsync(serviceBusMessages, cancellationToken).NoSync();
         }
         catch (Exception e)
         {
