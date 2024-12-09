@@ -22,4 +22,12 @@ public static class ServiceBusTransmitterRegistrar
         services.AddServiceBusSenderUtil();
         services.TryAddSingleton<IServiceBusTransmitter, ServiceBusTransmitter>();
     }
+
+    public static void AddServiceBusTransmitterAsScoped(this IServiceCollection services)
+    {
+        services.AddBackgroundQueue();
+        services.AddServiceBusMessageUtil();
+        services.AddServiceBusSenderUtil();
+        services.TryAddScoped<IServiceBusTransmitter, ServiceBusTransmitter>();
+    }
 }

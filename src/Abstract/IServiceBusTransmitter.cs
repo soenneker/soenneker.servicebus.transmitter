@@ -14,7 +14,7 @@ public interface IServiceBusTransmitter
     /// <summary>
     /// Wraps <see cref="InternalSendMessage{TMsg}"/> with <see cref="IBackgroundQueue"/>
     /// </summary>
-    ValueTask SendMessage<T>(T msgModel, CancellationToken cancellationToken = default) where T : Messages.Base.Message;
+    ValueTask SendMessage<T>(T msgModel, bool useQueue = true, CancellationToken cancellationToken = default) where T : Messages.Base.Message;
 
     /// <summary>
     /// Actually sends the message after getting the connection, etc. Not supposed to be accessed directly besides tests.
@@ -24,7 +24,7 @@ public interface IServiceBusTransmitter
     /// <summary>
     /// Wraps <see cref="InternalSendMessages{TMsg}"/> with TaskQueue
     /// </summary>
-    ValueTask SendMessages<T>(IList<T> msgModels, CancellationToken cancellationToken = default) where T : Messages.Base.Message;
+    ValueTask SendMessages<T>(IList<T> msgModels, bool useQueue = true, CancellationToken cancellationToken = default) where T : Messages.Base.Message;
 
     /// <summary>
     /// Actually sends the message after getting the connection, etc. Not supposed to be accessed directly besides tests.

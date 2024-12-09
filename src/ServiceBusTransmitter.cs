@@ -37,7 +37,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
         _enabled = config.GetValueStrict<bool>("Azure:ServiceBus:Enable");
     }
 
-    public ValueTask SendMessage<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
+    public ValueTask SendMessage<TMessage>(TMessage message, bool useQueue = true, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
     {
         if (!_enabled)
         {
@@ -45,7 +45,10 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
             return ValueTask.CompletedTask;
         }
 
-        return _backgroundQueue.QueueValueTask(token => InternalSendMessage(message, token), cancellationToken);
+        if (useQueue)
+            return _backgroundQueue.QueueValueTask(token => InternalSendMessage(message, token), cancellationToken);
+
+        return InternalSendMessage(message, cancellationToken);
     }
 
     public async ValueTask InternalSendMessage<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
@@ -66,11 +69,11 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
         catch (Exception e)
         {
             // TODO: make this louder
-            _logger.LogError(e, "== ServiceBusTransmitter: Problem sending message, type: {type}", type.ToString());
+            _logger.LogError(e, "== {name}: Problem sending message, type: {type}", nameof(ServiceBusTransmitter), type.ToString());
         }
     }
 
-    public ValueTask SendMessages<TMessage>(IList<TMessage> messages, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
+    public ValueTask SendMessages<TMessage>(IList<TMessage> messages, bool useQueue = true, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
     {
         if (!_enabled)
         {
@@ -78,7 +81,10 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
             return ValueTask.CompletedTask;
         }
 
-        return _backgroundQueue.QueueValueTask(token => InternalSendMessages(messages, token), cancellationToken);
+        if (useQueue)
+            return _backgroundQueue.QueueValueTask(token => InternalSendMessages(messages, token), cancellationToken);
+
+        return InternalSendMessages(messages, cancellationToken);
     }
 
     public async ValueTask InternalSendMessages<TMessage>(IList<TMessage> messages, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
@@ -93,8 +99,9 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
 
             List<ServiceBusMessage> serviceBusMessages = [];
 
-            foreach (TMessage message in messages)
+            for (var i = 0; i < messages.Count; i++)
             {
+                TMessage message = messages[i];
                 ServiceBusMessage? serviceBusMessage = _serviceBusMessageUtil.BuildMessage(message, type);
 
                 if (serviceBusMessage != null)
@@ -103,7 +110,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
 
             if (serviceBusMessages.Count == 0)
             {
-                _logger.LogError("== ServiceBusTransmitter: No messages to send...");
+                _logger.LogError("== {name}: No messages to send...", nameof(ServiceBusTransmitter));
                 return;
             }
 
@@ -111,7 +118,7 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "== ServiceBusTransmitter: Problem sending (batched) message, type: {type}", type.ToString());
+            _logger.LogError(e, "== {name}: Problem sending (batched) message, type: {type}", nameof(ServiceBusTransmitter), type.ToString());
         }
     }
 }
