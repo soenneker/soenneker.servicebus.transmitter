@@ -38,6 +38,6 @@
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
         <PackageReference Include="Soenneker.ServiceBus.Message" Version="3.0.2126" />
         <PackageReference Include="Soenneker.ServiceBus.Sender" Version="3.0.1491" />
-        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="3.0.1847" />
+        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="3.0.1849" />
     </ItemGroup>
 </Project>
