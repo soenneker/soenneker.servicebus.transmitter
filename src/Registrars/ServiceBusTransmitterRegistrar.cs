@@ -12,19 +12,23 @@ namespace Soenneker.ServiceBus.Transmitter.Registrars;
 /// </summary>
 public static class ServiceBusTransmitterRegistrar
 {
-    public static void AddServiceBusTransmitterAsSingleton(this IServiceCollection services)
+    public static IServiceCollection AddServiceBusTransmitterAsSingleton(this IServiceCollection services)
     {
         services.AddBackgroundQueue();
         services.AddServiceBusMessageUtilAsSingleton();
         services.AddServiceBusSenderUtilAsSingleton();
         services.TryAddSingleton<IServiceBusTransmitter, ServiceBusTransmitter>();
+
+        return services;
     }
 
-    public static void AddServiceBusTransmitterAsScoped(this IServiceCollection services)
+    public static IServiceCollection AddServiceBusTransmitterAsScoped(this IServiceCollection services)
     {
         services.AddBackgroundQueue();
         services.AddServiceBusMessageUtilAsSingleton();
         services.AddServiceBusSenderUtilAsSingleton();
         services.TryAddScoped<IServiceBusTransmitter, ServiceBusTransmitter>();
+
+        return services;
     }
 }

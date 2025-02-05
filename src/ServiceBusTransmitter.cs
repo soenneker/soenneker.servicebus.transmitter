@@ -55,10 +55,10 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
     {
         Type type = typeof(TMessage);
 
+        ServiceBusSender sender = await _serviceBusSenderUtil.Get(message.Queue, cancellationToken).NoSync();
+
         try
         {
-            ServiceBusSender sender = await _serviceBusSenderUtil.Get(message.Queue, cancellationToken).NoSync();
-
             ServiceBusMessage? serviceBusMessage = _serviceBusMessageUtil.BuildMessage(message, type);
 
             if (serviceBusMessage == null)
@@ -91,14 +91,14 @@ public class ServiceBusTransmitter : IServiceBusTransmitter
     {
         Type type = typeof(TMessage);
 
+        string queueName = messages.First().Queue;
+
+        ServiceBusSender sender = await _serviceBusSenderUtil.Get(queueName, cancellationToken).NoSync();
+
+        List<ServiceBusMessage> serviceBusMessages = [];
+
         try
         {
-            string queueName = messages.First().Queue;
-
-            ServiceBusSender sender = await _serviceBusSenderUtil.Get(queueName, cancellationToken).NoSync();
-
-            List<ServiceBusMessage> serviceBusMessages = [];
-
             for (var i = 0; i < messages.Count; i++)
             {
                 TMessage message = messages[i];
