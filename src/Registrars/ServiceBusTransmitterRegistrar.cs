@@ -15,10 +15,9 @@ public static class ServiceBusTransmitterRegistrar
     public static IServiceCollection AddServiceBusTransmitterAsSingleton(this IServiceCollection services)
     {
         services.AddBackgroundQueueAsSingleton()
-                .AddServiceBusMessageUtilAsSingleton();
-        services.AddServiceBusSenderUtilAsSingleton();
-
-        services.TryAddSingleton<IServiceBusTransmitter, ServiceBusTransmitter>();
+                .AddServiceBusMessageUtilAsSingleton()
+                .AddServiceBusSenderUtilAsSingleton()
+                .TryAddSingleton<IServiceBusTransmitter, ServiceBusTransmitter>();
 
         return services;
     }
@@ -26,9 +25,9 @@ public static class ServiceBusTransmitterRegistrar
     public static IServiceCollection AddServiceBusTransmitterAsScoped(this IServiceCollection services)
     {
         services.AddBackgroundQueueAsSingleton()
-                .AddServiceBusMessageUtilAsSingleton();
-        services.AddServiceBusSenderUtilAsSingleton();
-        services.TryAddScoped<IServiceBusTransmitter, ServiceBusTransmitter>();
+                .AddServiceBusMessageUtilAsSingleton()
+                .AddServiceBusSenderUtilAsSingleton()
+                .TryAddScoped<IServiceBusTransmitter, ServiceBusTransmitter>();
 
         return services;
     }
