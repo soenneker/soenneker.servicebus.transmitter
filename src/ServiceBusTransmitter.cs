@@ -17,7 +17,7 @@ using Soenneker.Utils.BackgroundQueue.Abstract;
 namespace Soenneker.ServiceBus.Transmitter;
 
 ///<inheritdoc cref="IServiceBusTransmitter"/>
-public class ServiceBusTransmitter : IServiceBusTransmitter
+public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 {
     private readonly ILogger<ServiceBusTransmitter> _logger;
 
