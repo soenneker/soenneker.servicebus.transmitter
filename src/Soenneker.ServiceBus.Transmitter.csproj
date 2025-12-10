@@ -37,7 +37,7 @@
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
         <PackageReference Include="Soenneker.ServiceBus.Message" Version="4.0.2716" />
-        <PackageReference Include="Soenneker.ServiceBus.Sender" Version="4.0.2171" />
+        <PackageReference Include="Soenneker.ServiceBus.Sender" Version="4.0.2173" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2217" />
     </ItemGroup>
 </Project>
