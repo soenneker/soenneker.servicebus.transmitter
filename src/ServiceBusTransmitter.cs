@@ -7,17 +7,18 @@ using Soenneker.Extensions.ValueTask;
 using Soenneker.ServiceBus.Message.Abstract;
 using Soenneker.ServiceBus.Sender.Abstract;
 using Soenneker.ServiceBus.Transmitter.Abstract;
+using Soenneker.ServiceBus.Transmitter.Dtos;
 using Soenneker.ServiceBus.Transmitter.Utils;
 using Soenneker.Utils.BackgroundQueue.Abstract;
+using Soenneker.Utils.Json;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Soenneker.Utils.Json;
 
 namespace Soenneker.ServiceBus.Transmitter;
 
-///<inheritdoc cref="IServiceBusTransmitter"/>
+/// <inheritdoc cref="IServiceBusTransmitter"/>
 public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 {
     private readonly ILogger<ServiceBusTransmitter> _logger;
@@ -49,14 +50,23 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             return ValueTask.CompletedTask;
         }
 
-        return useQueue
-            ? _backgroundQueue.QueueValueTask(token => InternalSendMessage(message, token), cancellationToken)
-            : InternalSendMessage(message, cancellationToken);
+        if (!useQueue)
+            return InternalSendMessage(message, cancellationToken);
+
+        // IMPORTANT: materialize what we need NOW, so we don't keep the big message graph alive in the queued closure.
+        QueuedSingle? work = BuildQueuedSingle(message);
+
+        // If we couldn't build, skip
+        if (work is null)
+            return ValueTask.CompletedTask;
+
+        return _backgroundQueue.QueueValueTask(token => InternalSendQueuedSingle(work, token), cancellationToken);
     }
 
     public async ValueTask InternalSendMessage<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
     {
-        if (!_enabled) return;
+        if (!_enabled)
+            return;
 
         string queue = message.Queue;
         string typeName = TypeCache<TMessage>.TypeName;
@@ -72,13 +82,15 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             if (_transmitterLogging)
                 _logger.LogInformation("TX: {json}", JsonUtil.Serialize(message));
 
-            ServiceBusSender sender = await _serviceBusSenderUtil.Get(queue, cancellationToken).NoSync();
+            ServiceBusSender sender = await _serviceBusSenderUtil.Get(queue, cancellationToken)
+                                                                 .NoSync();
             ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, TypeCache<TMessage>.Type);
 
             if (sbMessage is null)
                 return;
 
-            await sender.SendMessageAsync(sbMessage, cancellationToken).NoSync();
+            await sender.SendMessageAsync(sbMessage, cancellationToken)
+                        .NoSync();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -98,15 +110,23 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             return ValueTask.CompletedTask;
         }
 
-        return useQueue
-            ? _backgroundQueue.QueueValueTask(token => InternalSendMessages(messages, token), cancellationToken)
-            : InternalSendMessages(messages, cancellationToken);
+        if (!useQueue)
+            return InternalSendMessages(messages, cancellationToken);
+
+        // IMPORTANT: materialize what we need NOW, so the queued closure doesn't retain the huge list / message graphs.
+        QueuedBatch? work = BuildQueuedBatch(messages);
+
+        if (work is null)
+            return ValueTask.CompletedTask;
+
+        return _backgroundQueue.QueueValueTask(token => InternalSendQueuedBatch(work, token), cancellationToken);
     }
 
     public async ValueTask InternalSendMessages<TMessage>(IList<TMessage> messages, CancellationToken cancellationToken = default)
         where TMessage : Messages.Base.Message
     {
-        if (!_enabled || messages is null || messages.Count == 0) return;
+        if (!_enabled || messages is null || messages.Count == 0)
+            return;
 
         // Validate all messages target the same queue
         string queue = messages[0].Queue;
@@ -130,11 +150,12 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
         try
         {
-            ServiceBusSender sender = await _serviceBusSenderUtil.Get(queue, cancellationToken).NoSync();
+            ServiceBusSender sender = await _serviceBusSenderUtil.Get(queue, cancellationToken)
+                                                                 .NoSync();
 
-            // we still batch for efficiency, but log JSON for every message
             await using var disposer = new BatchDisposer();
-            disposer.Batch = await sender.CreateMessageBatchAsync(cancellationToken).NoSync();
+            disposer.Batch = await sender.CreateMessageBatchAsync(cancellationToken)
+                                         .NoSync();
 
             for (var i = 0; i < messages.Count; i++)
             {
@@ -152,10 +173,9 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
                 if (!disposer.Batch.TryAddMessage(sbMsg))
                 {
-                    // Send current batch
-                    await sender.SendMessagesAsync(disposer.Batch, cancellationToken).NoSync();
+                    await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
+                                .NoSync();
 
-                    // Create new batch with retry logic
                     ServiceBusMessageBatch? newBatch = null;
                     var retryCount = 0;
                     const int maxRetries = 3;
@@ -164,20 +184,22 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
                     {
                         try
                         {
-                            newBatch = await sender.CreateMessageBatchAsync(cancellationToken).NoSync();
+                            newBatch = await sender.CreateMessageBatchAsync(cancellationToken)
+                                                   .NoSync();
                         }
                         catch (Exception ex) when (retryCount < maxRetries - 1)
                         {
                             retryCount++;
                             _logger.LogWarning(ex, "Failed to create new batch, retry {RetryCount}/{MaxRetries}", retryCount, maxRetries);
-                            await Task.Delay(100 * retryCount, cancellationToken).NoSync();
+                            await Task.Delay(100 * retryCount, cancellationToken)
+                                      .NoSync();
                         }
                         catch (Exception ex)
                         {
                             _logger.LogError(ex, "Failed to create new batch after {MaxRetries} retries, falling back to individual message sending",
                                 maxRetries);
-                            // Fallback to individual message sending for the remaining messages
-                            await SendRemainingMessagesIndividually(sender, messages, i, cancellationToken).NoSync();
+                            await SendRemainingMessagesIndividually(sender, messages, i, cancellationToken)
+                                .NoSync();
                             return;
                         }
                     }
@@ -186,11 +208,11 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
                     {
                         disposer.Replace(newBatch);
 
-                        // Try to add the message to the new batch
                         if (!disposer.Batch.TryAddMessage(sbMsg))
                         {
                             _logger.LogError("Failed to add message to new batch, falling back to individual message sending");
-                            await SendRemainingMessagesIndividually(sender, messages, i, cancellationToken).NoSync();
+                            await SendRemainingMessagesIndividually(sender, messages, i, cancellationToken)
+                                .NoSync();
                             return;
                         }
                     }
@@ -198,15 +220,228 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             }
 
             if (disposer.Batch.Count > 0)
-                await sender.SendMessagesAsync(disposer.Batch, cancellationToken).NoSync();
+                await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
+                            .NoSync();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // silence on cancel
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "TX: error sending batch.");
+        }
+    }
+
+
+    private QueuedSingle? BuildQueuedSingle<TMessage>(TMessage message) where TMessage : Messages.Base.Message
+    {
+        // Extract tiny things first
+        string queue = message.Queue;
+        string typeName = TypeCache<TMessage>.TypeName;
+
+        // Build ServiceBusMessage now so we don't retain the full message graph in the queue closure.
+        ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, TypeCache<TMessage>.Type);
+
+        if (sbMessage is null)
+            return null;
+
+        string? json = _transmitterLogging ? JsonUtil.Serialize(message) : null;
+
+        return new QueuedSingle
+        {
+            Queue = queue,
+            TypeName = typeName,
+            SbMessage = sbMessage,
+            Json = json
+        };
+    }
+
+    private QueuedBatch? BuildQueuedBatch<TMessage>(IList<TMessage> messages) where TMessage : Messages.Base.Message
+    {
+        if (messages is null || messages.Count == 0)
+            return null;
+
+        // Validate same queue early, while we still have the source list
+        string queue = messages[0].Queue;
+        for (var i = 1; i < messages.Count; i++)
+        {
+            if (messages[i].Queue != queue)
+            {
+                _logger.LogError("All messages in a batch must target the same queue. Expected: {ExpectedQueue}, Found: {FoundQueue} at index {Index}", queue,
+                    messages[i].Queue, i);
+                return null;
+            }
+        }
+
+        string typeName = TypeCache<TMessage>.TypeName;
+
+        // Materialize ServiceBusMessage[] now to avoid retaining the original DTO graphs.
+        // NOTE: If BuildMessage embeds the DTO reference instead of serializing, you may want to change BuildMessage
+        // to serialize immediately and set Body explicitly, so this truly drops the graph.
+        var sbMessages = new ServiceBusMessage[messages.Count];
+        string[]? jsons = _transmitterLogging ? new string[messages.Count] : null;
+
+        var written = 0;
+        for (var i = 0; i < messages.Count; i++)
+        {
+            TMessage msg = messages[i];
+
+            if (jsons is not null)
+                jsons[i] = JsonUtil.Serialize(msg);
+
+            ServiceBusMessage? sb = _serviceBusMessageUtil.BuildMessage(msg, TypeCache<TMessage>.Type);
+            if (sb is null)
+                continue;
+
+            sbMessages[written++] = sb;
+        }
+
+        if (written == 0)
+            return null;
+
+        // Trim if some were null-skipped
+        if (written != sbMessages.Length)
+            Array.Resize(ref sbMessages, written);
+
+        if (jsons is not null && written != jsons.Length)
+            Array.Resize(ref jsons, written);
+
+        return new QueuedBatch
+        {
+            Queue = queue,
+            TypeName = typeName,
+            Messages = sbMessages,
+            Jsons = jsons
+        };
+    }
+
+    private async ValueTask InternalSendQueuedSingle(QueuedSingle work, CancellationToken cancellationToken)
+    {
+        if (!_enabled)
+            return;
+
+        using IDisposable? _ = _logger.BeginScope(new Dictionary<string, object>(2)
+        {
+            ["sb.queue"] = work.Queue,
+            ["sb.type"] = work.TypeName
+        });
+
+        try
+        {
+            if (_transmitterLogging && work.Json is not null)
+                _logger.LogInformation("TX: {json}", work.Json);
+
+            ServiceBusSender sender = await _serviceBusSenderUtil.Get(work.Queue, cancellationToken)
+                                                                 .NoSync();
+            await sender.SendMessageAsync(work.SbMessage, cancellationToken)
+                        .NoSync();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TX: error sending single message.");
+        }
+    }
+
+    private async ValueTask InternalSendQueuedBatch(QueuedBatch work, CancellationToken cancellationToken)
+    {
+        if (!_enabled || work.Messages.Length == 0)
+            return;
+
+        using IDisposable? _ = _logger.BeginScope(new Dictionary<string, object>(2)
+        {
+            ["sb.queue"] = work.Queue,
+            ["sb.type"] = work.TypeName
+        });
+
+        try
+        {
+            ServiceBusSender sender = await _serviceBusSenderUtil.Get(work.Queue, cancellationToken)
+                                                                 .NoSync();
+
+            await using var disposer = new BatchDisposer();
+            disposer.Batch = await sender.CreateMessageBatchAsync(cancellationToken)
+                                         .NoSync();
+
+            for (int i = 0; i < work.Messages.Length; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (_transmitterLogging && work.Jsons is not null)
+                    _logger.LogInformation("TX: {json}", work.Jsons[i]);
+
+                ServiceBusMessage sbMsg = work.Messages[i];
+
+                if (!disposer.Batch.TryAddMessage(sbMsg))
+                {
+                    await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
+                                .NoSync();
+
+                    ServiceBusMessageBatch? newBatch = null;
+                    var retryCount = 0;
+                    const int maxRetries = 3;
+
+                    while (newBatch == null && retryCount < maxRetries)
+                    {
+                        try
+                        {
+                            newBatch = await sender.CreateMessageBatchAsync(cancellationToken)
+                                                   .NoSync();
+                        }
+                        catch (Exception ex) when (retryCount < maxRetries - 1)
+                        {
+                            retryCount++;
+                            _logger.LogWarning(ex, "Failed to create new batch, retry {RetryCount}/{MaxRetries}", retryCount, maxRetries);
+                            await Task.Delay(100 * retryCount, cancellationToken)
+                                      .NoSync();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to create new batch after {MaxRetries} retries, falling back to individual message sending",
+                                maxRetries);
+
+                            // Fallback to individual sends for remaining
+                            await SendRemainingServiceBusMessagesIndividually(sender, work.Messages, i, cancellationToken)
+                                .NoSync();
+                            return;
+                        }
+                    }
+
+                    disposer.Replace(newBatch!);
+
+                    if (!disposer.Batch.TryAddMessage(sbMsg))
+                    {
+                        _logger.LogError("Failed to add message to new batch, falling back to individual message sending");
+                        await SendRemainingServiceBusMessagesIndividually(sender, work.Messages, i, cancellationToken)
+                            .NoSync();
+                        return;
+                    }
+                }
+            }
+
+            if (disposer.Batch.Count > 0)
+                await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
+                            .NoSync();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TX: error sending batch.");
+        }
+    }
+
+    private static async ValueTask SendRemainingServiceBusMessagesIndividually(ServiceBusSender sender, ServiceBusMessage[] messages, int startIndex,
+        CancellationToken cancellationToken)
+    {
+        for (int i = startIndex; i < messages.Length; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await sender.SendMessageAsync(messages[i], cancellationToken)
+                        .ConfigureAwait(false);
         }
     }
 
@@ -223,9 +458,8 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
                 ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(msg, TypeCache<TMessage>.Type);
 
                 if (sbMsg != null)
-                {
-                    await sender.SendMessageAsync(sbMsg, cancellationToken).NoSync();
-                }
+                    await sender.SendMessageAsync(sbMsg, cancellationToken)
+                                .NoSync();
             }
             catch (Exception ex)
             {
