@@ -29,6 +29,10 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
     private readonly bool _enabled;
     private readonly bool _transmitterLogging;
 
+    private readonly record struct QueuedSingleState(ServiceBusTransmitter Self, QueuedSingle Work);
+
+    private readonly record struct QueuedBatchState(ServiceBusTransmitter Self, QueuedBatch Work);
+
     public ServiceBusTransmitter(ILogger<ServiceBusTransmitter> logger, IBackgroundQueue backgroundQueue, IServiceBusMessageUtil serviceBusMessageUtil,
         IServiceBusSenderUtil serviceBusSenderUtil, IConfiguration config)
     {
@@ -60,7 +64,8 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         if (work is null)
             return ValueTask.CompletedTask;
 
-        return _backgroundQueue.QueueValueTask(token => InternalSendQueuedSingle(work, token), cancellationToken);
+        return _backgroundQueue.QueueValueTask(new QueuedSingleState(this, work),
+            static (state, token) => state.Self.InternalSendQueuedSingle(state.Work, token), cancellationToken);
     }
 
     public async ValueTask InternalSendMessage<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
@@ -119,7 +124,8 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         if (work is null)
             return ValueTask.CompletedTask;
 
-        return _backgroundQueue.QueueValueTask(token => InternalSendQueuedBatch(work, token), cancellationToken);
+        return _backgroundQueue.QueueValueTask(new QueuedBatchState(this, work), static (state, token) => state.Self.InternalSendQueuedBatch(state.Work, token),
+            cancellationToken);
     }
 
     public async ValueTask InternalSendMessages<TMessage>(IList<TMessage> messages, CancellationToken cancellationToken = default)
