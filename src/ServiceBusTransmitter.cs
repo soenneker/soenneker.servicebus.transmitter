@@ -29,10 +29,6 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
     private readonly bool _enabled;
     private readonly bool _transmitterLogging;
 
-    private readonly record struct QueuedSingleState(ServiceBusTransmitter Self, QueuedSingle Work);
-
-    private readonly record struct QueuedBatchState(ServiceBusTransmitter Self, QueuedBatch Work);
-
     public ServiceBusTransmitter(ILogger<ServiceBusTransmitter> logger, IBackgroundQueue backgroundQueue, IServiceBusMessageUtil serviceBusMessageUtil,
         IServiceBusSenderUtil serviceBusSenderUtil, IConfiguration config)
     {
