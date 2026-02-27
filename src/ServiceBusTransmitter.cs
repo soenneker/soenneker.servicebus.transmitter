@@ -70,7 +70,9 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             return;
 
         string queue = message.Queue;
-        string typeName = TypeCache<TMessage>.TypeName;
+
+        Type runtimeType = message.GetType();
+        string typeName = runtimeType.FullName ?? runtimeType.Name;
 
         using IDisposable? _ = _logger.BeginScope(new Dictionary<string, object>(2)
         {
@@ -85,7 +87,8 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
             ServiceBusSender sender = await _serviceBusSenderUtil.Get(queue, cancellationToken)
                                                                  .NoSync();
-            ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, TypeCache<TMessage>.Type);
+
+            ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, runtimeType);
 
             if (sbMessage is null)
                 return;
@@ -130,8 +133,8 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         if (!_enabled || messages is null || messages.Count == 0)
             return;
 
-        // Validate all messages target the same queue
         string queue = messages[0].Queue;
+
         for (var i = 1; i < messages.Count; i++)
         {
             if (messages[i].Queue != queue)
@@ -142,7 +145,9 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             }
         }
 
-        string typeName = TypeCache<TMessage>.TypeName;
+        Type runtimeType = messages[0]
+            .GetType();
+        string typeName = runtimeType.FullName ?? runtimeType.Name;
 
         using IDisposable? _ = _logger.BeginScope(new Dictionary<string, object>(2)
         {
@@ -163,12 +168,13 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                TMessage msg = messages[i];
+                TMessage message = messages[i];
 
                 if (_transmitterLogging)
-                    _logger.LogInformation("TX: {json}", JsonUtil.Serialize(msg));
+                    _logger.LogInformation("TX: {json}", JsonUtil.Serialize(message));
 
-                ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(msg, TypeCache<TMessage>.Type);
+                Type msgType = message.GetType();
+                ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(message, msgType);
 
                 if (sbMsg is null)
                     continue;
@@ -178,45 +184,15 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
                     await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
                                 .NoSync();
 
-                    ServiceBusMessageBatch? newBatch = null;
-                    var retryCount = 0;
-                    const int maxRetries = 3;
+                    disposer.Replace(await sender.CreateMessageBatchAsync(cancellationToken)
+                                                 .NoSync());
 
-                    while (newBatch == null && retryCount < maxRetries)
+                    if (!disposer.Batch.TryAddMessage(sbMsg))
                     {
-                        try
-                        {
-                            newBatch = await sender.CreateMessageBatchAsync(cancellationToken)
-                                                   .NoSync();
-                        }
-                        catch (Exception ex) when (retryCount < maxRetries - 1)
-                        {
-                            retryCount++;
-                            _logger.LogWarning(ex, "Failed to create new batch, retry {RetryCount}/{MaxRetries}", retryCount, maxRetries);
-                            await Task.Delay(100 * retryCount, cancellationToken)
-                                      .NoSync();
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Failed to create new batch after {MaxRetries} retries, falling back to individual message sending",
-                                maxRetries);
-                            await SendRemainingMessagesIndividually(sender, messages, i, cancellationToken)
-                                .NoSync();
-                            return;
-                        }
-                    }
-
-                    if (newBatch != null)
-                    {
-                        disposer.Replace(newBatch);
-
-                        if (!disposer.Batch.TryAddMessage(sbMsg))
-                        {
-                            _logger.LogError("Failed to add message to new batch, falling back to individual message sending");
-                            await SendRemainingMessagesIndividually(sender, messages, i, cancellationToken)
-                                .NoSync();
-                            return;
-                        }
+                        _logger.LogError("Failed to add message to new batch, falling back to individual message sending");
+                        await SendRemainingMessagesIndividually(sender, messages, i, cancellationToken)
+                            .NoSync();
+                        return;
                     }
                 }
             }
@@ -237,12 +213,12 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
     private QueuedSingle? BuildQueuedSingle<TMessage>(TMessage message) where TMessage : Messages.Base.Message
     {
-        // Extract tiny things first
         string queue = message.Queue;
-        string typeName = TypeCache<TMessage>.TypeName;
 
-        // Build ServiceBusMessage now so we don't retain the full message graph in the queue closure.
-        ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, TypeCache<TMessage>.Type);
+        Type runtimeType = message.GetType();
+        string typeName = runtimeType.FullName ?? runtimeType.Name;
+
+        ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, runtimeType);
 
         if (sbMessage is null)
             return null;
@@ -263,8 +239,8 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         if (messages is null || messages.Count == 0)
             return null;
 
-        // Validate same queue early, while we still have the source list
         string queue = messages[0].Queue;
+
         for (var i = 1; i < messages.Count; i++)
         {
             if (messages[i].Queue != queue)
@@ -275,23 +251,25 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             }
         }
 
-        string typeName = TypeCache<TMessage>.TypeName;
+        Type runtimeType = messages[0]
+            .GetType();
+        string typeName = runtimeType.FullName ?? runtimeType.Name;
 
-        // Materialize ServiceBusMessage[] now to avoid retaining the original DTO graphs.
-        // NOTE: If BuildMessage embeds the DTO reference instead of serializing, you may want to change BuildMessage
-        // to serialize immediately and set Body explicitly, so this truly drops the graph.
         var sbMessages = new ServiceBusMessage[messages.Count];
         string[]? jsons = _transmitterLogging ? new string[messages.Count] : null;
 
         var written = 0;
+
         for (var i = 0; i < messages.Count; i++)
         {
-            TMessage msg = messages[i];
+            TMessage message = messages[i];
 
             if (jsons is not null)
-                jsons[i] = JsonUtil.Serialize(msg);
+                jsons[i] = JsonUtil.Serialize(message);
 
-            ServiceBusMessage? sb = _serviceBusMessageUtil.BuildMessage(msg, TypeCache<TMessage>.Type);
+            Type msgType = message.GetType();
+            ServiceBusMessage? sb = _serviceBusMessageUtil.BuildMessage(message, msgType);
+
             if (sb is null)
                 continue;
 
@@ -301,7 +279,6 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         if (written == 0)
             return null;
 
-        // Trim if some were null-skipped
         if (written != sbMessages.Length)
             Array.Resize(ref sbMessages, written);
 
@@ -456,8 +433,8 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                TMessage msg = messages[i];
-                ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(msg, TypeCache<TMessage>.Type);
+                TMessage message = messages[i];
+                ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(message, message.GetType());
 
                 if (sbMsg != null)
                     await sender.SendMessageAsync(sbMsg, cancellationToken)
