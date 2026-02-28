@@ -70,14 +70,11 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             return;
 
         string queue = message.Queue;
-
-        Type runtimeType = message.GetType();
-        string typeName = runtimeType.FullName ?? runtimeType.Name;
-
+        
         using IDisposable? _ = _logger.BeginScope(new Dictionary<string, object>(2)
         {
             ["sb.queue"] = queue,
-            ["sb.type"] = typeName
+            ["sb.type"] = message.Type
         });
 
         try
@@ -88,7 +85,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             ServiceBusSender sender = await _serviceBusSenderUtil.Get(queue, cancellationToken)
                                                                  .NoSync();
 
-            ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, runtimeType);
+            ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, message.Type);
 
             if (sbMessage is null)
                 return;
@@ -173,8 +170,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
                 if (_transmitterLogging)
                     _logger.LogInformation("TX: {json}", JsonUtil.Serialize(message));
 
-                Type msgType = message.GetType();
-                ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(message, msgType);
+                ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(message, message.Type);
 
                 if (sbMsg is null)
                     continue;
@@ -215,10 +211,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
     {
         string queue = message.Queue;
 
-        Type runtimeType = message.GetType();
-        string typeName = runtimeType.FullName ?? runtimeType.Name;
-
-        ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, runtimeType);
+        ServiceBusMessage? sbMessage = _serviceBusMessageUtil.BuildMessage(message, message.Type);
 
         if (sbMessage is null)
             return null;
@@ -228,7 +221,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         return new QueuedSingle
         {
             Queue = queue,
-            TypeName = typeName,
+            TypeName = message.Type,
             SbMessage = sbMessage,
             Json = json
         };
@@ -267,8 +260,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             if (jsons is not null)
                 jsons[i] = JsonUtil.Serialize(message);
 
-            Type msgType = message.GetType();
-            ServiceBusMessage? sb = _serviceBusMessageUtil.BuildMessage(message, msgType);
+            ServiceBusMessage? sb = _serviceBusMessageUtil.BuildMessage(message, message.Type);
 
             if (sb is null)
                 continue;
@@ -419,8 +411,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         for (int i = startIndex; i < messages.Length; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await sender.SendMessageAsync(messages[i], cancellationToken)
-                        .ConfigureAwait(false);
+            await sender.SendMessageAsync(messages[i], cancellationToken).NoSync();
         }
     }
 
@@ -434,7 +425,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
                 cancellationToken.ThrowIfCancellationRequested();
 
                 TMessage message = messages[i];
-                ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(message, message.GetType());
+                ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(message, message.Type);
 
                 if (sbMsg != null)
                     await sender.SendMessageAsync(sbMsg, cancellationToken)
