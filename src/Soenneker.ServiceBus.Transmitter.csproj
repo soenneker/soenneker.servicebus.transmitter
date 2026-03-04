@@ -39,7 +39,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.ServiceBus.Message" Version="4.0.2818" />
+        <PackageReference Include="Soenneker.ServiceBus.Message" Version="4.0.2819" />
         <PackageReference Include="Soenneker.ServiceBus.Sender" Version="4.0.2282" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2283" />
     </ItemGroup>
