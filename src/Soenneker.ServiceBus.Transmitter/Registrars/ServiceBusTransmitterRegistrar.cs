@@ -12,6 +12,11 @@ namespace Soenneker.ServiceBus.Transmitter.Registrars;
 /// </summary>
 public static class ServiceBusTransmitterRegistrar
 {
+    /// <summary>
+    /// Adds service bus transmitter as singleton.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The result of the operation.</returns>
     public static IServiceCollection AddServiceBusTransmitterAsSingleton(this IServiceCollection services)
     {
         services.AddBackgroundQueueAsSingleton()
@@ -22,6 +27,11 @@ public static class ServiceBusTransmitterRegistrar
         return services;
     }
 
+    /// <summary>
+    /// Adds service bus transmitter as scoped.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The result of the operation.</returns>
     public static IServiceCollection AddServiceBusTransmitterAsScoped(this IServiceCollection services)
     {
         services.AddBackgroundQueueAsSingleton()
