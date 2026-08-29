@@ -41,6 +41,14 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         _transmitterLogging = config.GetValue<bool>("Azure:ServiceBus:TransmitterLogging");
     }
 
+    /// <summary>
+    /// Sends message.
+    /// </summary>
+    /// <typeparam name="TMessage">Type of message used by the operation.</typeparam>
+    /// <param name="message">Message content to send.</param>
+    /// <param name="useQueue">Whether to enqueue the write for background execution instead of awaiting Redis directly.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when the message has been sent.</returns>
     public ValueTask SendMessage<TMessage>(TMessage message, bool useQueue = true, CancellationToken cancellationToken = default)
         where TMessage : Messages.Base.Message
     {
@@ -64,6 +72,13 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             static (state, token) => state.Self.InternalSendQueuedSingle(state.Work, token), cancellationToken);
     }
 
+    /// <summary>
+    /// Returns the value produced by internal Send Message.
+    /// </summary>
+    /// <typeparam name="TMessage">Type of message used by the operation.</typeparam>
+    /// <param name="message">Message content to send.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when the internal send message operation is complete.</returns>
     public async ValueTask InternalSendMessage<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : Messages.Base.Message
     {
         if (!_enabled)
@@ -102,6 +117,14 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         }
     }
 
+    /// <summary>
+    /// Sends messages.
+    /// </summary>
+    /// <typeparam name="TMessage">Type of message used by the operation.</typeparam>
+    /// <param name="messages">Messages to send or process.</param>
+    /// <param name="useQueue">Whether to enqueue the write for background execution instead of awaiting Redis directly.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when the messages has been sent.</returns>
     public ValueTask SendMessages<TMessage>(IList<TMessage> messages, bool useQueue = true, CancellationToken cancellationToken = default)
         where TMessage : Messages.Base.Message
     {
@@ -124,6 +147,13 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Returns the value produced by internal Send Messages.
+    /// </summary>
+    /// <typeparam name="TMessage">Type of message used by the operation.</typeparam>
+    /// <param name="messages">Messages to send or process.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when the internal send messages operation is complete.</returns>
     public async ValueTask InternalSendMessages<TMessage>(IList<TMessage> messages, CancellationToken cancellationToken = default)
         where TMessage : Messages.Base.Message
     {
