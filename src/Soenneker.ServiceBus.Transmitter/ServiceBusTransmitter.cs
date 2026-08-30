@@ -207,8 +207,11 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
                 if (!disposer.Batch.TryAddMessage(sbMsg))
                 {
-                    await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
-                                .NoSync();
+                    if (disposer.Batch.Count > 0)
+                    {
+                        await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
+                                    .NoSync();
+                    }
 
                     disposer.Replace(await sender.CreateMessageBatchAsync(cancellationToken)
                                                  .NoSync());
@@ -279,7 +282,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         string typeName = runtimeType.FullName ?? runtimeType.Name;
 
         var sbMessages = new ServiceBusMessage[messages.Count];
-        string[]? jsons = _transmitterLogging ? new string[messages.Count] : null;
+        string?[]? jsons = _transmitterLogging ? new string?[messages.Count] : null;
 
         var written = 0;
 
@@ -287,13 +290,13 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         {
             TMessage message = messages[i];
 
-            if (jsons is not null)
-                jsons[i] = JsonUtil.Serialize(message);
-
             ServiceBusMessage? sb = _serviceBusMessageUtil.BuildMessage(message, message.Type);
 
             if (sb is null)
                 continue;
+
+            if (jsons is not null)
+                jsons[written] = JsonUtil.Serialize(message);
 
             sbMessages[written++] = sb;
         }
@@ -377,8 +380,11 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
                 if (!disposer.Batch.TryAddMessage(sbMsg))
                 {
-                    await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
-                                .NoSync();
+                    if (disposer.Batch.Count > 0)
+                    {
+                        await sender.SendMessagesAsync(disposer.Batch, cancellationToken)
+                                    .NoSync();
+                    }
 
                     ServiceBusMessageBatch? newBatch = null;
                     var retryCount = 0;
@@ -460,6 +466,10 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
                 if (sbMsg != null)
                     await sender.SendMessageAsync(sbMsg, cancellationToken)
                                 .NoSync();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
