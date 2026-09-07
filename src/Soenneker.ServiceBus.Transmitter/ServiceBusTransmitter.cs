@@ -94,7 +94,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
         try
         {
-            if (_transmitterLogging)
+            if (_transmitterLogging && _logger.IsEnabled(LogLevel.Information))
                 _logger.LogInformation("TX: {json}", JsonUtil.Serialize(message));
 
             ServiceBusSender sender = await _serviceBusSenderUtil.Get(queue, cancellationToken)
@@ -197,7 +197,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
                 TMessage message = messages[i];
 
-                if (_transmitterLogging)
+                if (_transmitterLogging && _logger.IsEnabled(LogLevel.Information))
                     _logger.LogInformation("TX: {json}", JsonUtil.Serialize(message));
 
                 ServiceBusMessage? sbMsg = _serviceBusMessageUtil.BuildMessage(message, message.Type);
@@ -249,7 +249,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         if (sbMessage is null)
             return null;
 
-        string? json = _transmitterLogging ? JsonUtil.Serialize(message) : null;
+        string? json = _transmitterLogging && _logger.IsEnabled(LogLevel.Information) ? JsonUtil.Serialize(message) : null;
 
         return new QueuedSingle
         {
@@ -282,7 +282,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         string typeName = runtimeType.FullName ?? runtimeType.Name;
 
         var sbMessages = new ServiceBusMessage[messages.Count];
-        string?[]? jsons = _transmitterLogging ? new string?[messages.Count] : null;
+        string?[]? jsons = _transmitterLogging && _logger.IsEnabled(LogLevel.Information) ? new string?[messages.Count] : null;
 
         var written = 0;
 
@@ -332,7 +332,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
 
         try
         {
-            if (_transmitterLogging && work.Json is not null)
+            if (_transmitterLogging && _logger.IsEnabled(LogLevel.Information) && work.Json is not null)
                 _logger.LogInformation("TX: {json}", work.Json);
 
             ServiceBusSender sender = await _serviceBusSenderUtil.Get(work.Queue, cancellationToken)
@@ -373,7 +373,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (_transmitterLogging && work.Jsons is not null)
+                if (_transmitterLogging && _logger.IsEnabled(LogLevel.Information) && work.Jsons is not null)
                     _logger.LogInformation("TX: {json}", work.Jsons[i]);
 
                 ServiceBusMessage sbMsg = work.Messages[i];
