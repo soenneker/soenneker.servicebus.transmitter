@@ -1,14 +1,11 @@
-﻿using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus;
 
 namespace Soenneker.ServiceBus.Transmitter.Dtos;
 
-internal sealed class QueuedSingle
+internal sealed class QueuedSingle(ServiceBusTransmitter self, string queue, string typeName, ServiceBusMessage message)
 {
-    public required string Queue { get; set; }
-
-    public required string TypeName { get; set; }
-
-    public required ServiceBusMessage SbMessage { get; set; }
-
-    public string? Json { get; init; } // only when transmitter logging enabled
+    public ServiceBusTransmitter Self { get; } = self;
+    public string Queue { get; } = queue;
+    public string TypeName { get; } = typeName;
+    public ServiceBusMessage Message { get; } = message;
 }
