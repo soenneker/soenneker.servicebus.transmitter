@@ -46,7 +46,7 @@
     <ItemGroup>
         <PackageReference Include="Soenneker.ServiceBus.Message" Version="4.0.3155" />
         <PackageReference Include="Soenneker.ServiceBus.Sender" Version="4.0.2524" />
-        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2511" />
+        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2513" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
