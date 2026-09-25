@@ -116,7 +116,7 @@ public sealed class Fixture
     {
         var config = Config(logging);
         Senders = new(Sender);
-        Builder = new(new ServiceBusMessageUtil(config, NullLogger<ServiceBusMessageUtil>.Instance));
+        Builder = new(new ServiceBusMessageUtil(TestJsonContext.Default, config, NullLogger<ServiceBusMessageUtil>.Instance));
         Info = new(config);
         Queue = new(config, NullLogger<BackgroundQueue>.Instance, Info);
         Transmitter = new(logging ? new EnabledLogger<ServiceBusTransmitter>() : NullLogger<ServiceBusTransmitter>.Instance, Queue, Builder, Senders, config);
