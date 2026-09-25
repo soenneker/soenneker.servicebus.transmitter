@@ -44,15 +44,15 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.ServiceBus.Message" Version="4.0.3155" />
+        <PackageReference Include="Soenneker.ServiceBus.Message" Version="4.0.3157" />
         <PackageReference Include="Soenneker.ServiceBus.Sender" Version="4.0.2526" />
-        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2511" />
+        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2513" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-        <PackageReference Include="Soenneker.Extensions.Configuration" Version="4.0.895" />
+        <PackageReference Include="Soenneker.Extensions.Configuration" Version="4.0.896" />
     </ItemGroup>
 </Project>
