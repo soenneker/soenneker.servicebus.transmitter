@@ -53,6 +53,6 @@
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-        <PackageReference Include="Soenneker.Extensions.Configuration" Version="4.0.896" />
+        <PackageReference Include="Soenneker.Extensions.Configuration" Version="4.0.897" />
     </ItemGroup>
 </Project>
