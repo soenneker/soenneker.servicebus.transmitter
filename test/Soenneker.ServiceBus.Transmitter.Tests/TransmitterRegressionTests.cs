@@ -15,7 +15,7 @@ public class TransmitterRegressionTests
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    public async Task BatchSplitsWithoutLosingOrDuplicatingMessages(bool queued)
+    public async ValueTask BatchSplitsWithoutLosingOrDuplicatingMessages(bool queued)
     {
         var f = new Fixture();
         var input = Enumerable.Range(0, 7).Select(i => Payload.Create(i.ToString())).ToArray();
@@ -30,7 +30,7 @@ public class TransmitterRegressionTests
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    public async Task OversizedBatchEnvelopeOnlyFallsBackForThatMessage(bool queued)
+    public async ValueTask OversizedBatchEnvelopeOnlyFallsBackForThatMessage(bool queued)
     {
         var f = new Fixture();
         var input = Enumerable.Range(0, 6).Select(i => Payload.Create(i.ToString())).ToArray();
@@ -43,7 +43,7 @@ public class TransmitterRegressionTests
     }
 
     [Test]
-    public async Task RejectedMessagesDoNotTriggerAzureAccess()
+    public async ValueTask RejectedMessagesDoNotTriggerAzureAccess()
     {
         var f = new Fixture(); f.Builder.RejectAll = true;
         await f.Transmitter.SendMessage(Payload.Create(), false);
@@ -52,7 +52,7 @@ public class TransmitterRegressionTests
     }
 
     [Test]
-    public async Task MixedQueuesAreRejectedBeforeSerialization()
+    public async ValueTask MixedQueuesAreRejectedBeforeSerialization()
     {
         var f = new Fixture(); var one = Payload.Create(); var two = Payload.Create(); two.Queue = "other";
         await f.Transmitter.SendMessages(new[] { one, two }, false);
@@ -61,7 +61,7 @@ public class TransmitterRegressionTests
     }
 
     [Test]
-    public async Task QueuedPayloadIsSnapshotAndRejectedSlotsAreNotSent()
+    public async ValueTask QueuedPayloadIsSnapshotAndRejectedSlotsAreNotSent()
     {
         var f = new Fixture(true);
         var one = Payload.Create("before"); var rejected = Payload.Create(); rejected.Id = "reject";
@@ -73,7 +73,7 @@ public class TransmitterRegressionTests
     }
 
     [Test]
-    public async Task CancellationAvoidsSerializationAndBatchRetry()
+    public async ValueTask CancellationAvoidsSerializationAndBatchRetry()
     {
         var f = new Fixture(); using var canceled = new CancellationTokenSource(); canceled.Cancel();
         try { await f.Transmitter.SendMessage(Payload.Create(), true, canceled.Token); }
@@ -86,7 +86,7 @@ public class TransmitterRegressionTests
     }
 
     [Test]
-    public async Task FailedReplacementFallsBackWithoutResendingCompletedBatch()
+    public async ValueTask FailedReplacementFallsBackWithoutResendingCompletedBatch()
     {
         var f = new Fixture(); f.Sender.FailReplacement = true;
         await f.Transmitter.SendMessages(Enumerable.Range(0, 5).Select(i => Payload.Create(i.ToString())).ToArray());
