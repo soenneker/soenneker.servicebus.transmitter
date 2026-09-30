@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
@@ -89,6 +90,9 @@ public sealed class CountingBuilder(IServiceBusMessageUtil inner) : IServiceBusM
 {
     public int Calls;
     public bool RejectAll;
+    public ServiceBusMessage? BuildMessage<T>(T message, string type, JsonSerializerContext jsonContext) where T : Soenneker.Messages.Base.Message
+        => BuildMessage(message, type);
+
     public ServiceBusMessage? BuildMessage<T>(T message, string type) where T : Soenneker.Messages.Base.Message
     {
         Calls++;
