@@ -17,11 +17,11 @@ public interface IServiceBusTransmitter
     /// <param name="msgModel">Msg Model for the send message operation.</param>
     /// <param name="useQueue">Whether to enqueue the Azure send for background execution instead of attempting it before returning.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
-    /// <returns>A task that completes when queued work has been accepted or the foreground send attempt has finished. Send failures are logged rather than returned.</returns>
+    /// <returns>A task that completes when queued work has been accepted or the foreground send attempt has finished. Foreground failures and cancellation propagate to the caller; background failures are observed by the background queue.</returns>
     ValueTask SendMessage<T>(T msgModel, bool useQueue = true, CancellationToken cancellationToken = default) where T : Messages.Base.Message;
 
     /// <summary>
-    /// Builds and attempts to send one message without using the background queue. Failures are logged rather than returned.
+    /// Builds and attempts to send one message without using the background queue. Failures and cancellation propagate to the caller.
     /// </summary>
     /// <typeparam name="TMsg">Type of msg used by the operation.</typeparam>
     /// <param name="msg">Msg for the internal send message operation.</param>
@@ -36,11 +36,11 @@ public interface IServiceBusTransmitter
     /// <param name="msgModels">msg Models to process.</param>
     /// <param name="useQueue">Whether to enqueue the Azure sends for background execution instead of attempting them before returning.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
-    /// <returns>A task that completes when queued work has been accepted or the foreground batch attempt has finished. Send failures are logged rather than returned.</returns>
+    /// <returns>A task that completes when queued work has been accepted or the foreground batch attempt has finished. Foreground failures and cancellation propagate to the caller; background failures are observed by the background queue.</returns>
     ValueTask SendMessages<T>(IList<T> msgModels, bool useQueue = true, CancellationToken cancellationToken = default) where T : Messages.Base.Message;
 
     /// <summary>
-    /// Builds and attempts to send a same-queue message collection without using the background queue. Failures are logged rather than returned.
+    /// Builds and attempts to send a same-queue message collection without using the background queue. Failures and cancellation propagate to the caller.
     /// </summary>
     /// <typeparam name="T">Type of value handled by the Service Bus Transmitter.</typeparam>
     /// <param name="msgModels">msg Models to process.</param>

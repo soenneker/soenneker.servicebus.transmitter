@@ -56,7 +56,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         cancellationToken.ThrowIfCancellationRequested();
         ServiceBusMessage? built = _serviceBusMessageUtil.BuildMessage(message, message.Type);
         if (built is null)
-            return ValueTask.CompletedTask;
+            throw new InvalidOperationException("Service Bus message serialization failed.");
 
         // Only retain the materialized transport message, not the application object graph.
         var work = new QueuedSingle(this, message.Queue, message.Type, built);
@@ -68,23 +68,24 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         where TMessage : Messages.Base.Message
     {
         if (!_enabled)
-            return ValueTask.CompletedTask;
+            throw new InvalidOperationException("Service Bus is disabled.");
 
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             ServiceBusMessage? built = _serviceBusMessageUtil.BuildMessage(message, message.Type);
-            if (built is not null)
-                return SendSingle(message.Queue, message.Type, built, cancellationToken);
+            if (built is null) throw new InvalidOperationException("Service Bus message serialization failed.");
+            return SendSingle(message.Queue, message.Type, built, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "TX: error sending single message.");
+            throw;
         }
-        return ValueTask.CompletedTask;
     }
 
     private async ValueTask SendSingle(string queue, string type, ServiceBusMessage message, CancellationToken cancellationToken)
@@ -99,10 +100,12 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "TX: error sending single message.");
+            throw;
         }
     }
 
@@ -148,8 +151,9 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
     public async ValueTask InternalSendMessages<TMessage>(IList<TMessage> messages, CancellationToken cancellationToken = default)
         where TMessage : Messages.Base.Message
     {
-        if (!_enabled || messages is null || messages.Count == 0 || cancellationToken.IsCancellationRequested)
-            return;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!_enabled) throw new InvalidOperationException("Service Bus is disabled.");
+        if (messages is null || messages.Count == 0) return;
         if (messages.Count == 1)
         {
             await InternalSendMessage(messages[0], cancellationToken).NoSync();
@@ -201,6 +205,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to send individual message at index {Index}", i);
+                    throw;
                 }
             }
 
@@ -209,10 +214,12 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "TX: error sending batch.");
+            throw;
         }
         finally
         {
@@ -274,10 +281,12 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "TX: error sending batch.");
+            throw;
         }
         finally
         {
