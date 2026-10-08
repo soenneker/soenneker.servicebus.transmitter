@@ -15,11 +15,11 @@ public class TransmitterRegressionTests
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    public async Task BatchSplitsWithoutLosingOrDuplicatingMessages(bool queued)
+    public async Task BatchSplitsWithoutLosingOrDuplicatingMessages(bool queued, CancellationToken cancellationToken)
     {
         var f = new Fixture();
         var input = Enumerable.Range(0, 7).Select(i => Payload.Create(i.ToString())).ToArray();
-        await f.Transmitter.SendMessages(input, queued);
+        await f.Transmitter.SendMessages(input, queued, cancellationToken: cancellationToken);
         if (queued) await f.DrainOne();
         Check(f.Sender.BatchSends == 4, "Expected four batches");
         Check(f.Sender.Sent.Count == 7 && f.Builder.Calls == 7, "Every message must be built and sent once");
@@ -30,12 +30,12 @@ public class TransmitterRegressionTests
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    public async Task OversizedBatchEnvelopeOnlyFallsBackForThatMessage(bool queued)
+    public async Task OversizedBatchEnvelopeOnlyFallsBackForThatMessage(bool queued, CancellationToken cancellationToken)
     {
         var f = new Fixture();
         var input = Enumerable.Range(0, 6).Select(i => Payload.Create(i.ToString())).ToArray();
         input[2].Id = "oversize";
-        await f.Transmitter.SendMessages(input, queued);
+        await f.Transmitter.SendMessages(input, queued, cancellationToken: cancellationToken);
         if (queued) await f.DrainOne();
         Check(f.Sender.SingleSends == 1, "Only oversized message should use individual send");
         Check(f.Sender.Sent.Count == 6 && f.Builder.Calls == 6, "No duplicate serialization or send");
@@ -43,29 +43,29 @@ public class TransmitterRegressionTests
     }
 
     [Test]
-    public async Task RejectedMessagesDoNotTriggerAzureAccess()
+    public async Task RejectedMessagesDoNotTriggerAzureAccess(CancellationToken cancellationToken)
     {
         var f = new Fixture(); f.Builder.RejectAll = true;
-        await f.Transmitter.SendMessage(Payload.Create(), false);
-        await f.Transmitter.SendMessages(new[] { Payload.Create(), Payload.Create() }, false);
+        await f.Transmitter.SendMessage(Payload.Create(), false, cancellationToken: cancellationToken);
+        await f.Transmitter.SendMessages(new[] { Payload.Create(), Payload.Create() }, false, cancellationToken: cancellationToken);
         Check(f.Senders.Gets == 0 && f.Sender.CreatedBatches == 0, "Rejected bodies should not create clients or batches");
     }
 
     [Test]
-    public async Task MixedQueuesAreRejectedBeforeSerialization()
+    public async Task MixedQueuesAreRejectedBeforeSerialization(CancellationToken cancellationToken)
     {
         var f = new Fixture(); var one = Payload.Create(); var two = Payload.Create(); two.Queue = "other";
-        await f.Transmitter.SendMessages(new[] { one, two }, false);
-        await f.Transmitter.SendMessages(new[] { one, two }, true);
+        await f.Transmitter.SendMessages(new[] { one, two }, false, cancellationToken: cancellationToken);
+        await f.Transmitter.SendMessages(new[] { one, two }, true, cancellationToken: cancellationToken);
         Check(f.Builder.Calls == 0 && f.Senders.Gets == 0, "Mixed queues must never be sent");
     }
 
     [Test]
-    public async Task QueuedPayloadIsSnapshotAndRejectedSlotsAreNotSent()
+    public async Task QueuedPayloadIsSnapshotAndRejectedSlotsAreNotSent(CancellationToken cancellationToken)
     {
         var f = new Fixture(true);
         var one = Payload.Create("before"); var rejected = Payload.Create(); rejected.Id = "reject";
-        await f.Transmitter.SendMessages(new[] { one, rejected }, true);
+        await f.Transmitter.SendMessages(new[] { one, rejected }, true, cancellationToken: cancellationToken);
         one.Content = "after";
         await f.DrainOne();
         Check(f.Sender.Sent.Count == 1 && f.Sender.SingleSends == 1, "Only valid message should be sent");
@@ -73,23 +73,23 @@ public class TransmitterRegressionTests
     }
 
     [Test]
-    public async Task CancellationAvoidsSerializationAndBatchRetry()
+    public async Task CancellationAvoidsSerializationAndBatchRetry(CancellationToken cancellationToken)
     {
         var f = new Fixture(); using var canceled = new CancellationTokenSource(); canceled.Cancel();
         try { await f.Transmitter.SendMessage(Payload.Create(), true, canceled.Token); }
         catch (OperationCanceledException) { }
         Check(f.Builder.Calls == 0, "Canceled queued request still serialized");
         f.Sender.CancelCreation = true;
-        await f.Transmitter.SendMessages(new[] { Payload.Create(), Payload.Create() });
+        await f.Transmitter.SendMessages(new[] { Payload.Create(), Payload.Create() }, cancellationToken: cancellationToken);
         await f.DrainOne();
         Check(f.Sender.CreatedBatches == 1, "Cancellation must not be retried");
     }
 
     [Test]
-    public async Task FailedReplacementFallsBackWithoutResendingCompletedBatch()
+    public async Task FailedReplacementFallsBackWithoutResendingCompletedBatch(CancellationToken cancellationToken)
     {
         var f = new Fixture(); f.Sender.FailReplacement = true;
-        await f.Transmitter.SendMessages(Enumerable.Range(0, 5).Select(i => Payload.Create(i.ToString())).ToArray());
+        await f.Transmitter.SendMessages(Enumerable.Range(0, 5).Select(i => Payload.Create(i.ToString())).ToArray(), cancellationToken: cancellationToken);
         await f.DrainOne();
         Check(f.Sender.CreatedBatches == 4 && f.Sender.BatchSends == 1 && f.Sender.SingleSends == 3, "Retry or fallback count changed");
         Check(f.Sender.Sent.Count == 5, "Fallback lost or duplicated messages");
