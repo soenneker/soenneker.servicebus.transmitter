@@ -43,11 +43,17 @@ public class TransmitterRegressionTests
     }
 
     [Test]
-    public async Task RejectedMessagesDoNotTriggerAzureAccess(CancellationToken cancellationToken)
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task RejectedMessagesDoNotTriggerAzureAccess(bool queued, CancellationToken cancellationToken)
     {
         var f = new Fixture(); f.Builder.RejectAll = true;
-        await f.Transmitter.SendMessage(Payload.Create(), false, cancellationToken: cancellationToken);
-        await f.Transmitter.SendMessages(new[] { Payload.Create(), Payload.Create() }, false, cancellationToken: cancellationToken);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await f.Transmitter.SendMessage(Payload.Create(), queued, cancellationToken: cancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await f.Transmitter.SendMessages(new[] { Payload.Create() }, queued, cancellationToken: cancellationToken));
+        await f.Transmitter.SendMessages(new[] { Payload.Create(), Payload.Create() }, queued, cancellationToken: cancellationToken);
+        Check(f.Builder.Calls == 4, "Every rejected message must be built once");
         Check(f.Senders.Gets == 0 && f.Sender.CreatedBatches == 0, "Rejected bodies should not create clients or batches");
     }
 
@@ -76,13 +82,14 @@ public class TransmitterRegressionTests
     public async Task CancellationAvoidsSerializationAndBatchRetry(CancellationToken cancellationToken)
     {
         var f = new Fixture(); using var canceled = new CancellationTokenSource(); canceled.Cancel();
-        try { await f.Transmitter.SendMessage(Payload.Create(), true, canceled.Token); }
-        catch (OperationCanceledException) { }
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await f.Transmitter.SendMessage(Payload.Create(), true, canceled.Token));
         Check(f.Builder.Calls == 0, "Canceled queued request still serialized");
         f.Sender.CancelCreation = true;
         await f.Transmitter.SendMessages(new[] { Payload.Create(), Payload.Create() }, cancellationToken: cancellationToken);
-        await f.DrainOne();
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await f.DrainOne());
         Check(f.Sender.CreatedBatches == 1, "Cancellation must not be retried");
+        Check(f.Sender.BatchSends == 0 && f.Sender.SingleSends == 0, "Cancellation must not send or fall back to individual messages");
     }
 
     [Test]
