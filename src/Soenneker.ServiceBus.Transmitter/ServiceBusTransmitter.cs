@@ -37,7 +37,7 @@ public sealed class ServiceBusTransmitter : IServiceBusTransmitter
         _backgroundQueue = backgroundQueue;
         _serviceBusMessageUtil = serviceBusMessageUtil;
         _serviceBusSenderUtil = serviceBusSenderUtil;
-        _enabled = config.GetValueStrict<bool>("Azure:ServiceBus:Enable");
+        _enabled = bool.Parse(config.GetStringStrict("Azure:ServiceBus:Enable"));
         _transmitterLogging = config.GetValue<bool>("Azure:ServiceBus:TransmitterLogging");
     }
 
