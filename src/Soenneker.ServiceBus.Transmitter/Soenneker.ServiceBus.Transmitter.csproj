@@ -44,8 +44,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.ServiceBus.Message" Version="4.0.3193" />
-        <PackageReference Include="Soenneker.ServiceBus.Sender" Version="4.0.2568" />
+        <PackageReference Include="Soenneker.ServiceBus.Message" Version="4.0.3194" />
+        <PackageReference Include="Soenneker.ServiceBus.Sender" Version="4.0.2569" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2539" />
     </ItemGroup>
     <ItemGroup>
@@ -53,6 +53,6 @@
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.13" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
-        <PackageReference Include="Soenneker.Extensions.Configuration" Version="4.0.909" />
+        <PackageReference Include="Soenneker.Extensions.Configuration" Version="4.0.910" />
     </ItemGroup>
 </Project>
